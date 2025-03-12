@@ -16,16 +16,17 @@ pipeline {
         }
         stage('Push to DockerHub') {
             steps {
-                    sh 'docker login'
+                withDockerRegistry([credentialsId: 'dockerhub_credentials', url: '']) {
                     sh 'docker push $DOCKER_IMAGE'
                 }
             }
-        }
+            }
+        
         stage('Deploy to Kubernetes') {
             steps {
                 sh 'kubectl apply -f deployment.yaml'
             }
         }
-    }
+     }
 }
 
