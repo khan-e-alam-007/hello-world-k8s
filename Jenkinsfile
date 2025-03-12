@@ -6,7 +6,7 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                git 'https://github.com/khan-e-alam-007/hello-world-k8s.git'
+                checkout scm
             }
         }
         stage('Build') {
