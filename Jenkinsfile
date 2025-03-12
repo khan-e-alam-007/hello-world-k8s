@@ -16,7 +16,7 @@ pipeline {
         }
         stage('Push to DockerHub') {
             steps {
-                withDockerRegistry([credentialsId: 'khanealam007', url: '']) {
+                    sh 'docker login'
                     sh 'docker push $DOCKER_IMAGE'
                 }
             }
