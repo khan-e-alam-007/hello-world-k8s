@@ -1,12 +1,12 @@
 pipeline {
     agent any
     environment {
-        DOCKER_IMAGE = 'your-dockerhub-username/hello-world-k8s'
+        DOCKER_IMAGE = 'khanealam007/hello-world-k8s'
     }
     stages {
         stage('Checkout') {
             steps {
-                git 'https://github.com/your-username/hello-world-k8s.git'
+                git 'https://github.com/khan-e-alam-007/hello-world-k8s'
             }
         }
         stage('Build') {
@@ -16,7 +16,7 @@ pipeline {
         }
         stage('Push to DockerHub') {
             steps {
-                withDockerRegistry([credentialsId: 'docker-hub-credentials', url: '']) {
+                withDockerRegistry([credentialsId: 'khanealam007', url: '']) {
                     sh 'docker push $DOCKER_IMAGE'
                 }
             }
