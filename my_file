@@ -2,8 +2,20 @@ pipeline {
     agent any
 
     environment {
-        IMAGE_NAME = "hello-abdul-nginx"
+        IMAGE_NAME     = "hello-abdul-nginx"
         CONTAINER_NAME = "my_app"
+        IMAGE_TAG      = "${IMAGE_NAME}:${BUILD_NUMBER}"
+    }
+
+    options {
+        skipDefaultCheckout(true)
+        disableConcurrentBuilds()
+        buildDiscarder(logRotator(numToKeepStr: '5'))
+    }
+
+    triggers {
+        // This makes Jenkins listen to GitHub webhooks
+        githubPush()
     }
 
     stages {
@@ -15,7 +27,7 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                sh "docker build -t ${IMAGE_NAME} ."
+                sh "docker build -t ${IMAGE_TAG} ."
             }
         }
 
@@ -29,8 +41,15 @@ pipeline {
 
         stage('Run New Container') {
             steps {
-                sh "docker run -d -p 8081:80 --name ${CONTAINER_NAME} ${IMAGE_NAME}"
+                sh "docker run -d -p 8081:80 --name ${CONTAINER_NAME} ${IMAGE_TAG}"
             }
+        }
+    }
+
+    post {
+        always {
+            echo "Cleaning up old Docker images..."
+            sh "docker image prune -af || true"
         }
     }
 }
