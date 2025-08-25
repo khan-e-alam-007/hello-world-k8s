@@ -1,0 +1,37 @@
+pipeline {
+    agent any
+
+    environment {
+        IMAGE_NAME = "hello-abdul-nginx"
+        CONTAINER_NAME = "my_app"
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                git branch: 'main', url: 'https://github.com/khan-e-alam-007/hello-world-k8s.git'
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                sh "docker build -t ${IMAGE_NAME} ."
+            }
+        }
+
+        stage('Stop Old Container') {
+            steps {
+                sh """
+                  docker ps -q --filter name=${CONTAINER_NAME} | grep -q . && docker rm -f ${CONTAINER_NAME} || true
+                """
+            }
+        }
+
+        stage('Run New Container') {
+            steps {
+                sh "docker run -d -p 8081:80 --name ${CONTAINER_NAME} ${IMAGE_NAME}"
+            }
+        }
+    }
+}
+
