@@ -1,0 +1,7 @@
+version: '3'
+services:
+  nginx:
+    image: 867344461647.dkr.ecr.us-east-1.amazonaws.com/hello-abdul-nginx:${IMAGE_TAG}
+    ports:
+      - "80:80"
+

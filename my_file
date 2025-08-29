@@ -2,9 +2,12 @@ pipeline {
     agent any
 
     environment {
-        IMAGE_NAME     = "hello-abdul-nginx"
-        CONTAINER_NAME = "my_app"
-        IMAGE_TAG      = "${IMAGE_NAME}:${BUILD_NUMBER}"
+        AWS_REGION      = "us-east-1"
+        ECR_REPO        = "hello-abdul-nginx"
+        CLUSTER_NAME    = "my-first-ecs"
+        SERVICE_NAME    = "nginx-service"
+        IMAGE_TAG       = "${BUILD_NUMBER}"
+        AWS_ACCOUNT_ID  = "867344461647"
     }
 
     options {
@@ -14,7 +17,6 @@ pipeline {
     }
 
     triggers {
-        // Jenkins will rebuild when GitHub webhook triggers
         githubPush()
     }
 
@@ -25,34 +27,40 @@ pipeline {
             }
         }
 
-        stage('Build Docker Image') {
+        stage('Login to ECR') {
             steps {
-                sh "docker build -t ${IMAGE_TAG} ."
+                sh '''
+                  aws ecr get-login-password --region $AWS_REGION \
+                  | docker login --username AWS --password-stdin $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com
+                '''
             }
         }
 
-        stage('Replace Old Container') {
+        stage('Build & Push Image') {
             steps {
-                sh """
-                  echo "Stopping and removing old container (if exists)..."
-                  docker rm -f ${CONTAINER_NAME} || true
-                  echo "Starting new container..."
-                  docker run -d -p 8081:80 --name ${CONTAINER_NAME} ${IMAGE_TAG}
-                """
+                sh '''
+                  docker build -t $ECR_REPO:$IMAGE_TAG .
+                  docker tag $ECR_REPO:$IMAGE_TAG $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:$IMAGE_TAG
+                  docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:$IMAGE_TAG
+                '''
             }
         }
 
-        stage('Check Logs') {
+        stage('Update ECS Service') {
             steps {
-                sh "docker logs --tail 20 ${CONTAINER_NAME} || true"
+                sh '''
+                  ecs-cli compose \
+                    --project-name $SERVICE_NAME \
+                    --file docker-compose.yml \
+                    --ecs-params ecs-params.yml \
+                    service up \
+                    --cluster-config default \
+                    --ecs-profile default \
+                    --force-deployment
+                '''
             }
         }
 
-        stage('Health Check') {
-            steps {
-                sh "curl -f http://localhost:8081 || (echo 'App failed to start' && exit 1)"
-            }
-        }
     }
 
     post {
