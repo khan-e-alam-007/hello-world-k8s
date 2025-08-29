@@ -2,73 +2,35 @@ pipeline {
     agent any
 
     environment {
-        AWS_REGION      = "us-east-1"
-        ECR_REPO        = "hello-abdul-nginx"
-        CLUSTER_NAME    = "my-first-ecs"
-        SERVICE_NAME    = "nginx-service"
-        IMAGE_TAG       = "${BUILD_NUMBER}"
-        AWS_ACCOUNT_ID  = "867344461647"
-    }
-
-    options {
-        skipDefaultCheckout(true)
-        disableConcurrentBuilds()
-        buildDiscarder(logRotator(numToKeepStr: '5'))
-    }
-
-    triggers {
-        githubPush()
+        AWS_REGION = "us-east-1"
+        ECR_REPO   = "867344461647.dkr.ecr.us-east-1.amazonaws.com/hello-abdul-nginx"
     }
 
     stages {
         stage('Checkout') {
             steps {
-                git branch: 'main', url: 'https://github.com/khan-e-alam-007/hello-world-k8s.git'
+                git branch: 'main', url: 'https://github.com/<your-username>/<your-repo>.git'
             }
         }
 
-        stage('Login to ECR') {
+        stage('Build & Push to ECR') {
             steps {
-                withAWS(credentials: 'aws-creds', region: "${AWS_REGION}") {
+                withAWS(region: "${AWS_REGION}", credentials: 'aws-creds') {
                     sh '''
-                        aws ecr get-login-password --region $AWS_REGION \
-                        | docker login --username AWS --password-stdin 867344461647.dkr.ecr.$AWS_REGION.amazonaws.com
+                        echo "Logging into ECR..."
+                        aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin 867344461647.dkr.ecr.$AWS_REGION.amazonaws.com
+                        
+                        echo "Building Docker image..."
+                        docker build -t hello-abdul-nginx .
+                        
+                        echo "Tagging Docker image..."
+                        docker tag hello-abdul-nginx:latest $ECR_REPO:latest
+                        
+                        echo "Pushing Docker image..."
+                        docker push $ECR_REPO:latest
                     '''
                 }
             }
-        }
-
-        stage('Build & Push Image') {
-            steps {
-                sh '''
-                  docker build -t $ECR_REPO:$IMAGE_TAG .
-                  docker tag $ECR_REPO:$IMAGE_TAG $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:$IMAGE_TAG
-                  docker push $AWS_ACCOUNT_ID.dkr.ecr.$AWS_REGION.amazonaws.com/$ECR_REPO:$IMAGE_TAG
-                '''
-            }
-        }
-
-        stage('Update ECS Service') {
-            steps {
-                sh '''
-                  ecs-cli compose \
-                    --project-name $SERVICE_NAME \
-                    --file docker-compose.yml \
-                    --ecs-params ecs-params.yml \
-                    service up \
-                    --cluster-config default \
-                    --ecs-profile default \
-                    --force-deployment
-                '''
-            }
-        }
-
-    }
-
-    post {
-        always {
-            echo "Cleaning up old Docker images..."
-            sh "docker image prune -af || true"
         }
     }
 }
